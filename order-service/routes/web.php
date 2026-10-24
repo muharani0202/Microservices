@@ -7,7 +7,7 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-// Endpoint Health Check di web.php
+// Endpoint Health Check di web.php 
 Route::get('/health', [OrderController::class, 'health']);
 
 Route::post('/orders', [OrderController::class, 'store']);
