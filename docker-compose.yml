@@ -1,4 +1,5 @@
 services:
+  # ==================== PRODUCT SERVICE ====================
   product-service:
     build: ./product-service
     ports:
@@ -30,5 +31,80 @@ services:
       retries: 5
       start_period: 30s
 
+  # ==================== CART SERVICE ====================
+  cart-service:
+    build: ./cart-service
+    ports:
+      - "3001:3001"
+    environment:
+      DB_CONNECTION: pgsql
+      DB_HOST: cart-db
+      DB_PORT: 5432
+      DB_DATABASE: cartdb
+      DB_USERNAME: appuser
+      DB_PASSWORD: apppassword
+      LOG_CHANNEL: stderr
+    depends_on:
+      cart-db:
+        condition: service_healthy
+
+  cart-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: cartdb
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: apppassword
+    ports:
+      - "5433:5432" # <-- ubah 5432 host menjadi 5433
+    volumes:
+      - cart-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U appuser -d cartdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  # ==================== REVIEW SERVICE ===================
+  review-service:
+    build: ./review-service
+    ports:
+      - "3002:3002"
+
+  # ==================== ORDER SERVICE (UTS) ====================
+  order-service:
+    build: ./order-service
+    ports:
+      - "3003:3003"
+    environment:
+      - PORT=3003
+      - DB_CONNECTION=mysql
+      - DB_HOST=order-db
+      - DB_PORT=3306
+      - DB_DATABASE=orderdb
+      - DB_USERNAME=root
+      - DB_PASSWORD=rootpassword
+      - PRODUCT_SERVICE_URL=http://product-service:3000
+      - CART_SERVICE_URL=http://cart-service:3001
+    depends_on:
+      order-db:
+        condition: service_healthy
+
+  order-db:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: orderdb
+      MYSQL_ROOT_PASSWORD: rootpassword
+    ports:
+      - "3307:3306" # Port 3307 host diarahkan ke 3306 container[span_3](start_span)[span_3](end_span)
+    volumes:
+      - order-db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
 volumes:
   product-db-data:
+  cart-db-data:
+  order-db-data:
