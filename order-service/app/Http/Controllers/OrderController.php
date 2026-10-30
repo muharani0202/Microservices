@@ -33,6 +33,12 @@ class OrderController extends Controller
 
             $order = $this->orderService->createOrder($userId);
 
+            // $userId = $request->input('user_id');
+
+            // throw new Exception('Simulasi kesalahan internal server');
+
+            // $order = $this->orderService->createOrder($userId);
+
             return response()->json([
                 'message' => 'Pesanan berhasil dibuat',
                 'data' => $order

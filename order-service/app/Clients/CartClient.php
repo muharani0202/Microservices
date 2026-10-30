@@ -41,7 +41,7 @@ class CartClient
             ]);
 
             throw new RuntimeException(
-                'Koneksi ke Cart Service gagal',
+                'Product service tidak dapat dihubungi, coba lagi nanti',
                 503,
                 $e
             );
