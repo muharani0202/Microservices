@@ -22,4 +22,4 @@ RUN chown -R www-data:www-data storage bootstrap/cache
 
 EXPOSE 3003
 
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=3003"]
+CMD ["sh", "-c", "php artisan config:clear && php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=3003"]

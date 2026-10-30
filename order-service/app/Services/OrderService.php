@@ -142,4 +142,75 @@ class OrderService
 
         return $order;
     }
+    
+    /**
+     * Mengambil detail pesanan berdasarkan ID
+     */
+    public function getOrderById(int $id): ?Order
+    {
+        return Order::with('items')->find($id);
+    }
+
+    /**
+     * Mengambil daftar pesanan berdasarkan User ID
+     * Bisa difilter berdasarkan status PENDING atau PAID
+     */
+    public function getOrdersByUser(
+        int $userId,
+        ?string $status = null
+    ) {
+        $query = Order::with('items')
+            ->where('user_id', $userId);
+
+        // Jika status diberikan, lakukan filter
+        if ($status !== null) {
+            $query->where('status', $status);
+        }
+
+        // Pesanan terbaru ditampilkan lebih dahulu
+        return $query
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->get();
+    }
+
+    /**
+     * Melakukan pembayaran pesanan
+     * Status PENDING berubah menjadi PAID
+     */
+    public function payOrder(int $id): Order
+    {
+        return DB::transaction(function () use ($id) {
+
+            // Cari pesanan dan kunci selama transaksi
+            $order = Order::whereKey($id)
+                ->lockForUpdate()
+                ->first();
+
+            // Jika pesanan tidak ditemukan
+            if (!$order) {
+                throw new Exception(
+                    "Pesanan dengan id {$id} tidak ditemukan",
+                    404
+                );
+            }
+
+            // Jika pesanan sudah dibayar
+            if ($order->status !== 'PENDING') {
+                throw new Exception(
+                    "Pesanan berstatus {$order->status}, hanya pesanan PENDING yang dapat dibayar",
+                    409
+                );
+            }
+
+            // Ubah status pembayaran
+            $order->update([
+                'status' => 'PAID'
+            ]);
+
+            // Ambil kembali pesanan beserta itemnya
+            return $order->load('items');
+        });
+    }
+
 }

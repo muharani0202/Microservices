@@ -49,7 +49,11 @@ class OrderController extends Controller
             Log::error('Error pada OrderController (store)', [
                 'user_id' => $request->input('user_id'),
                 'status_code' => $statusCode,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'exception' => get_class($e),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
             ]);
 
             // Menyusun pesan respons
