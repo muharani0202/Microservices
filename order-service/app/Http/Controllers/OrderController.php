@@ -32,7 +32,7 @@ class OrderController extends Controller
             // ==========================================================
 
             // Simulasi Skenario: 503 Service Lain Bermasalah (Cart/Product Service mati)
-            $simulasiServiceBermasalah = true; // Ubah jadi true untuk tes 503
+            $simulasiServiceBermasalah = false; // Ubah jadi true untuk tes 503
             if ($simulasiServiceBermasalah) {
                 Log::error("Order Service gagal menghubungi Product/Cart service untuk user_id: {$userId}");
                 return response()->json([
@@ -41,7 +41,7 @@ class OrderController extends Controller
             }
 
             // Simulasi Skenario: 409 Keranjang Kosong / Produk Tidak Ada / Stok Kurang
-            $simulasiStokKurang = true; // Ubah jadi true untuk tes 409
+            $simulasiStokKurang = false; // Ubah jadi true untuk tes 409
             if ($simulasiStokKurang) {
                 return response()->json([
                     "message" => "Stok Monitor 24 Inch tidak mencukupi: diminta 11, tersedia 10"
@@ -49,7 +49,7 @@ class OrderController extends Controller
             }
 
             // Simulasi Skenario: 500 Error Tak Terduga (Misal kendala database/sistem)
-            $simulasiErrorInternal = true; // Ubah jadi true untuk tes 500
+            $simulasiErrorInternal = false; // Ubah jadi true untuk tes 500
             if ($simulasiErrorInternal) {
                 throw new \Exception("Terjadi kesalahan tak terduga pada database internal.");
             }
