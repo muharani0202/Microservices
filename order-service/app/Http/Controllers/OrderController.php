@@ -30,24 +30,41 @@ class OrderController extends Controller
     {
         try {
             $userId = $request->input('user_id');
+
             $order = $this->orderService->createOrder($userId);
 
             return response()->json([
-                "message" => "Pesanan berhasil dibuat",
-                "data" => $order
+                'message' => 'Pesanan berhasil dibuat',
+                'data' => $order
             ], 201);
 
         } catch (Exception $e) {
-            $statusCode = in_array($e->getCode(), [409, 422, 503]) ? $e->getCode() : 500;
-            
-            if ($statusCode === 500) {
-                Log::error("Error pada OrderController (store): " . $e->getMessage());
+
+            // Menentukan HTTP status berdasarkan jenis kesalahan
+            $statusCode = in_array($e->getCode(), [409, 503])
+                ? $e->getCode()
+                : 500;
+
+            // Mencatat kesalahan ke log
+            Log::error('Error pada OrderController (store)', [
+                'user_id' => $request->input('user_id'),
+                'status_code' => $statusCode,
+                'error' => $e->getMessage()
+            ]);
+
+            // Menyusun pesan respons
+            $response = [
+                'message' => $statusCode === 500
+                    ? 'Terjadi kesalahan pada server'
+                    : $e->getMessage()
+            ];
+
+            // Detail teknis hanya ditampilkan ketika APP_DEBUG=true
+            if ($statusCode === 500 && config('app.debug')) {
+                $response['error'] = $e->getMessage();
             }
 
-            return response()->json([
-                "message" => $e->getMessage() ?: "Terjadi kesalahan pada server",
-                "error" => config('app.debug') && $statusCode === 500 ? $e->getMessage() : null
-            ], $statusCode);
+            return response()->json($response, $statusCode);
         }
     }
 
@@ -55,7 +72,7 @@ class OrderController extends Controller
     {
         if (!is_numeric($id)) {
             return response()->json([
-                "message" => "Pesanan dengan id {$id} tidak ditemukan"
+                'message' => "Pesanan dengan id {$id} tidak ditemukan"
             ], 404);
         }
 
@@ -63,13 +80,13 @@ class OrderController extends Controller
 
         if (!$order) {
             return response()->json([
-                "message" => "Pesanan dengan id {$id} tidak ditemukan"
+                'message' => "Pesanan dengan id {$id} tidak ditemukan"
             ], 404);
         }
 
         return response()->json([
-            "message" => "Berhasil mengambil pesanan",
-            "data" => $order
+            'message' => 'Berhasil mengambil pesanan',
+            'data' => $order
         ], 200);
     }
 
@@ -77,8 +94,12 @@ class OrderController extends Controller
     {
         if (!is_numeric($userId)) {
             return response()->json([
-                "message" => "Data yang dikirim tidak valid",
-                "errors" => ["user_id" => ["User ID harus berupa angka"]]
+                'message' => 'Data yang dikirim tidak valid',
+                'errors' => [
+                    'user_id' => [
+                        'User ID harus berupa angka'
+                    ]
+                ]
             ], 422);
         }
 
@@ -86,20 +107,23 @@ class OrderController extends Controller
 
         if ($status !== null && !in_array($status, ['PENDING', 'PAID'])) {
             return response()->json([
-                "message" => "Data yang dikirim tidak valid",
-                "errors" => [
-                    "status" => [
-                        "Status harus PENDING atau PAID"
+                'message' => 'Data yang dikirim tidak valid',
+                'errors' => [
+                    'status' => [
+                        'Status harus PENDING atau PAID'
                     ]
                 ]
             ], 422);
         }
 
-        $orders = $this->orderService->getOrdersByUser((int) $userId, $status);
+        $orders = $this->orderService->getOrdersByUser(
+            (int) $userId,
+            $status
+        );
 
         return response()->json([
-            "message" => "Berhasil mengambil daftar pesanan",
-            "data" => $orders
+            'message' => 'Berhasil mengambil daftar pesanan',
+            'data' => $orders
         ], 200);
     }
 
@@ -107,7 +131,7 @@ class OrderController extends Controller
     {
         if (!is_numeric($id)) {
             return response()->json([
-                "message" => "Pesanan dengan id {$id} tidak ditemukan"
+                'message' => "Pesanan dengan id {$id} tidak ditemukan"
             ], 404);
         }
 
@@ -115,16 +139,32 @@ class OrderController extends Controller
             $order = $this->orderService->payOrder((int) $id);
 
             return response()->json([
-                "message" => "Pesanan berhasil dibayar",
-                "data" => $order
+                'message' => 'Pesanan berhasil dibayar',
+                'data' => $order
             ], 200);
 
         } catch (Exception $e) {
-            $statusCode = in_array($e->getCode(), [404, 409]) ? $e->getCode() : 500;
 
-            return response()->json([
-                "message" => $e->getMessage(),
-            ], $statusCode);
+            $statusCode = in_array($e->getCode(), [404, 409])
+                ? $e->getCode()
+                : 500;
+
+            Log::error('Error pada OrderController (pay)', [
+                'order_id' => $id,
+                'error' => $e->getMessage()
+            ]);
+
+            $response = [
+                'message' => $statusCode === 500
+                    ? 'Terjadi kesalahan pada server'
+                    : $e->getMessage()
+            ];
+
+            if ($statusCode === 500 && config('app.debug')) {
+                $response['error'] = $e->getMessage();
+            }
+
+            return response()->json($response, $statusCode);
         }
     }
 }

@@ -4,7 +4,8 @@ namespace App\Clients;
 
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Exception;
+use Illuminate\Http\Client\ConnectionException;
+use RuntimeException;
 
 class CartClient
 {
@@ -12,36 +13,96 @@ class CartClient
 
     public function __construct()
     {
-        $this->baseUrl = config('services.cart.url');
+        $this->baseUrl = rtrim(
+            (string) config('services.cart.url'),
+            '/'
+        );
     }
 
-    public function getCart($userId)
+    public function getCart(int $userId): ?array
     {
-        try {
-            // Tambahkan ->throw() atau cetak URL untuk debugging jika perlu
-            $response = Http::timeout(5)->get("{$this->baseUrl}/carts/{$userId}");
-
-            if ($response->successful()) {
-                return $response->json()['data'] ?? null;
-            }
-
-            if ($response->status() === 404) {
-                return null;
-            }
-
-            throw new Exception("Cart service error status: " . $response->status());
-        } catch (Exception $e) {
-            Log::error("CartClient Error (getCart): " . $e->getMessage());
-            throw new Exception("Cart service tidak dapat dihubungi, coba lagi nanti", 503);
+        if (empty($this->baseUrl)) {
+            throw new RuntimeException(
+                'CART_SERVICE_URL belum dikonfigurasi',
+                503
+            );
         }
+
+        try {
+            $response = Http::timeout(5)
+                ->acceptJson()
+                ->get("{$this->baseUrl}/carts/{$userId}");
+
+        } catch (ConnectionException $e) {
+            Log::error('Cart Service tidak dapat dihubungi', [
+                'url' => $this->baseUrl,
+                'user_id' => $userId,
+                'error' => $e->getMessage(),
+            ]);
+
+            throw new RuntimeException(
+                'Koneksi ke Cart Service gagal',
+                503,
+                $e
+            );
+        }
+
+        // Periksa status HTTP dari Cart Service
+        if (!$response->successful()) {
+            Log::error('Cart Service mengembalikan HTTP error', [
+                'status' => $response->status(),
+                'body' => $response->body(),
+                'user_id' => $userId,
+            ]);
+
+            throw new RuntimeException(
+                "Cart Service mengembalikan HTTP {$response->status()}",
+                503
+            );
+        }
+
+        // Periksa format JSON
+        $result = $response->json();
+
+        if (
+            !is_array($result) ||
+            !isset($result['data']) ||
+            !is_array($result['data'])
+        ) {
+            Log::error('Format respons Cart Service tidak valid', [
+                'response' => $result,
+                'user_id' => $userId,
+            ]);
+
+            throw new RuntimeException(
+                'Format respons Cart Service tidak valid',
+                503
+            );
+        }
+
+        return $result['data'];
     }
 
-    public function clearCart($userId)
+    public function clearCart(int $userId): void
     {
         try {
-            Http::timeout(5)->delete("{$this->baseUrl}/carts/{$userId}");
-        } catch (Exception $e) {
-            Log::warning("Gagal mengosongkan keranjang: " . $e->getMessage());
+            $response = Http::timeout(5)
+                ->acceptJson()
+                ->delete("{$this->baseUrl}/carts/{$userId}");
+
+            if (!$response->successful()) {
+                Log::warning('Gagal mengosongkan keranjang', [
+                    'user_id' => $userId,
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                ]);
+            }
+
+        } catch (ConnectionException $e) {
+            Log::warning('Cart Service tidak dapat dihubungi saat mengosongkan keranjang', [
+                'user_id' => $userId,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 }

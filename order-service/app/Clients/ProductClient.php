@@ -4,7 +4,8 @@ namespace App\Clients;
 
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Exception;
+use Illuminate\Http\Client\ConnectionException;
+use RuntimeException;
 
 class ProductClient
 {
@@ -12,26 +13,81 @@ class ProductClient
 
     public function __construct()
     {
-        $this->baseUrl = config('services.product.url');
+        $this->baseUrl = rtrim(
+            (string) config('services.product.url'),
+            '/'
+        );
     }
 
-    public function getProduct($productId)
+    public function getProduct(int $productId): ?array
     {
-        try {
-            $response = Http::timeout(5)->get("{$this->baseUrl}/products/{$productId}");
-
-            if ($response->successful()) {
-                return $response->json()['data'] ?? null;
-            }
-
-            if ($response->status() === 404) {
-                return null;
-            }
-
-            throw new Exception("Product service error status: " . $response->status());
-        } catch (Exception $e) {
-            Log::error("ProductClient Error (getProduct): " . $e->getMessage());
-            throw new Exception("Product service tidak dapat dihubungi, coba lagi nanti", 503);
+        // 1. Periksa konfigurasi URL
+        if (empty($this->baseUrl)) {
+            throw new RuntimeException(
+                'PRODUCT_SERVICE_URL belum dikonfigurasi',
+                503
+            );
         }
+
+        try {
+            // 2. Mengambil data produk dari Product Service
+            $response = Http::timeout(5)
+                ->acceptJson()
+                ->get("{$this->baseUrl}/products/{$productId}");
+
+        } catch (ConnectionException $e) {
+            Log::error('Product Service tidak dapat dihubungi', [
+                'url' => $this->baseUrl,
+                'product_id' => $productId,
+                'error' => $e->getMessage(),
+            ]);
+
+            throw new RuntimeException(
+                'Koneksi ke Product Service gagal',
+                503,
+                $e
+            );
+        }
+
+        // 3. Jika produk tidak ditemukan
+        if ($response->status() === 404) {
+            return null;
+        }
+
+        // 4. Periksa status HTTP
+        if (!$response->successful()) {
+            Log::error('Product Service mengembalikan HTTP error', [
+                'status' => $response->status(),
+                'product_id' => $productId,
+                'body' => $response->body(),
+            ]);
+
+            throw new RuntimeException(
+                "Product Service mengembalikan HTTP {$response->status()}",
+                503
+            );
+        }
+
+        // 5. Periksa format JSON
+        $result = $response->json();
+
+        if (
+            !is_array($result) ||
+            !isset($result['data']) ||
+            !is_array($result['data'])
+        ) {
+            Log::error('Format respons Product Service tidak valid', [
+                'product_id' => $productId,
+                'response' => $result,
+            ]);
+
+            throw new RuntimeException(
+                'Format respons Product Service tidak valid',
+                503
+            );
+        }
+
+        // 6. Mengembalikan data produk
+        return $result['data'];
     }
 }
