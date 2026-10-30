@@ -1,20 +1,25 @@
-FROM php:8.2-fpm
+FROM php:8.4-cli
 
-# Install system dependencies & Composer
 RUN apt-get update && apt-get install -y \
     git \
     curl \
-    libpng-dev \
+    unzip \
     libonig-dev \
-    libxml2-dev \
-    zip \
-    unzip
+    libzip-dev \
+    && docker-php-ext-install pdo_mysql mbstring zip \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN apt-get clean && rm -rf /var/lib/apt/lists/*
-
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www
-COPY . /var/www
 
-EXPOSE 9000
+COPY . .
+
+RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+
+RUN chown -R www-data:www-data storage bootstrap/cache
+
+EXPOSE 3003
+
+CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=3003"]

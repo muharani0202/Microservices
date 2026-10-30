@@ -18,6 +18,7 @@ class CartClient
     public function getCart($userId)
     {
         try {
+            // Tambahkan ->throw() atau cetak URL untuk debugging jika perlu
             $response = Http::timeout(5)->get("{$this->baseUrl}/carts/{$userId}");
 
             if ($response->successful()) {
@@ -38,13 +39,9 @@ class CartClient
     public function clearCart($userId)
     {
         try {
-            $response = Http::timeout(5)->delete("{$this->baseUrl}/carts/{$userId}");
-            
-            if (!$response->successful()) {
-                Log::warning("Gagal mengosongkan keranjang untuk user_id: {$userId}");
-            }
+            Http::timeout(5)->delete("{$this->baseUrl}/carts/{$userId}");
         } catch (Exception $e) {
-            Log::warning("Gagal mengosongkan keranjang (Exception) untuk user_id: {$userId} - " . $e->getMessage());
+            Log::warning("Gagal mengosongkan keranjang: " . $e->getMessage());
         }
     }
 }

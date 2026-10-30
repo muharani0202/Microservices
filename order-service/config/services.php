@@ -40,7 +40,7 @@ return [
 ],
 
 'product' => [
-    'url' => env('PRODUCT_SERVICE_URL', 'http://localhost:3001'),
+    'url' => env('PRODUCT_SERVICE_URL', 'http://localhost:3000'),
 ],
 
 ];
