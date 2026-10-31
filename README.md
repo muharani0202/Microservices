@@ -64,7 +64,7 @@ cd Microservices
 Jalankan perintah berikut untuk membangun (build) image Docker dan menjalankan seluruh service:
 
 ```bash
-sudo docker compose up -d --build
+docker compose up -d --build
 ```
 
 Tunggu sampai proses build selesai.
