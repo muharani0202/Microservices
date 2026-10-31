@@ -44,9 +44,12 @@ services:
       DB_USERNAME: appuser
       DB_PASSWORD: apppassword
       LOG_CHANNEL: stderr
+      PRODUCT_SERVICE_URL: http://product-service:3000
     depends_on:
       cart-db:
         condition: service_healthy
+      product-service:
+        condition: service_started
 
   cart-db:
     image: postgres:16-alpine
@@ -82,8 +85,8 @@ services:
       - DB_DATABASE=orderdb
       - DB_USERNAME=root
       - DB_PASSWORD=rootpassword
-      - PRODUCT_SERVICE_URL=http://product-service:3000
       - CART_SERVICE_URL=http://cart-service:3001
+      - PRODUCT_SERVICE_URL=http://product-service:3000
     depends_on:
       order-db:
         condition: service_healthy
